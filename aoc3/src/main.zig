@@ -1,83 +1,49 @@
 const std = @import("std");
-const debug = std.debug;
 const Timer = std.time.Timer;
 
-const offset_low = 64;
-const offset_high = 96;
-const letter_count = 26;
-
 pub fn solve1(input: []const u8) !u32 {
-    var lines = std.mem.split(u8, input, "\n");
-    var line_number: u32 = 0;
     var total_score: u32 = 0;
+    
+    var lines = std.mem.tokenize(u8, input, "\n\r");
 
     while (lines.next()) |line| {
-        if (std.mem.eql(u8, line, "")) continue;
-        
-        var score: u32 = 0;
         const half = line.len / 2;
         const first = line[0..half];
         const second = line[half..];
-        var c: u8 = 0;
+        const both = toBits(first) & toBits(second);
+        const priority = @ctz(both) + 1;
+        total_score += priority;
+    }
 
-        for (first) |c1| {
-            for (second) |c2| {
-                if (c1 == c2) {
-                    c = c1;
-                    break;
-                }
-            }
-        }
+    return total_score;
+}
 
-        if (c > offset_high) {
-            score += c - offset_high;
-        } else {
-            score += c - offset_low + letter_count;
-        }
-
-        line_number += 1;
-        total_score += score;
+pub fn solve2(input: []const u8) !u32 {
+    var total_score: u32 = 0;
+    
+    var lines = std.mem.tokenize(u8, input, "\n\r");
+    
+    while (true)
+    {   
+        const first = lines.next() orelse break;
+        const second = lines.next() orelse break;
+        const third = lines.next() orelse break;
+        
+        const all = toBits(first) & toBits(second) & toBits(third);
+        const priority = @ctz(all) + 1;
+        total_score += priority;
     }
     
     return total_score;
 }
 
-pub fn solve2(input: []const u8) !u32 {
-    var lines = std.mem.split(u8, input, "\n");
-    
-    var total_score: u32 = 0;
-    
-    while (true)
-    {
-        var score: u32 = 0;
-        
-        const first = lines.next() orelse break;
-        const second = lines.next() orelse break;
-        const third = lines.next() orelse break;
-        
-        var c: u8 = 0;
-        
-        for (first) |c1| {
-            for (second) |c2| {
-                for (third) |c3| {
-                   if (c1 == c2 and c2 == c3) {
-                        c = c1;
-                        break;
-                    } 
-                } 
-            }
-        }
-        
-        if (c > offset_high) {
-            score += c - offset_high;
-        } else {
-            score += c - offset_low + letter_count;
-        }
-        
-        total_score += score;
+fn toBits(chars: []const u8) u64 {
+    var bits: u64 = 0;
+    for (chars) | c | {
+        const bit: u64 = if (c >= 'A' and c <= 'Z') (26 + c - 'A') else (c - 'a');
+        bits |= @as(u64, 1) << @intCast(u6, bit);
     }
-    
-    return total_score;
+    return bits;
 }
 
 pub fn bench(comptime solve: fn ([] const u8) anyerror!u32) !void {
