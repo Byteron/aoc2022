@@ -60,7 +60,6 @@ pub fn solve2(input: []const u8) !u32 {
         
         if (big1 < small2 or big2 < small1) { continue; }
         total_score += 1;
-        
     }
     
     return total_score;
