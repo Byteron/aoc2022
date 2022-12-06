@@ -3,19 +3,17 @@ const Timer = std.time.Timer;
 
 pub fn solve(input: []const u8, count: u8) !u32 {
     var lines = std.mem.tokenize(u8, input, "\n\r");
-    
     var line = lines.next().?;
     
-    var index: u32 = 0;
     var bits: u64 = 0;
-    var prev_count: u32 = 0;
     var bit_count: u32 = 0;
-    while (bit_count < count and index < line.len) {
+    var prev_count: u32 = 0;
+    var index: u32 = 0;
+    while (bit_count < count) {
         const c = line[index];
         const bit: u64 = @as(u64, 1) << @intCast(u6, (c - 'a'));
         bits |= bit;
         bit_count = @popCount(bits);
-        // std.debug.print("Index: {d}, C: {c} Count: {d}, Bit: {b}, Bits: {b}\n", .{index, c, @popCount(bits), bit, bits});
         if (bit_count == prev_count) {
             index -= prev_count;
             bits = 0;
