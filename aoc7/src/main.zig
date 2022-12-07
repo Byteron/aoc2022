@@ -6,7 +6,7 @@ const HashMap = std.StringHashMap;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
 
-const test_count: u32 = 1;
+const test_count: u32 = 1000;
 
 const ItemType = enum {
     file,
@@ -61,6 +61,21 @@ const Item = struct {
         }
         
         return sum;
+    }
+    
+    fn find_dir_to_delete(self: *const Item, needed_space: u32) u32 {
+        var size: u32 = 0;
+        if (self.size >= needed_space and self.item_type == .directory) size = self.size;
+        
+        var it = self.children.valueIterator();
+        while (it.next()) |item| {
+            var other_size = item.find_dir_to_delete(needed_space);
+            if (other_size > needed_space and other_size < size) {
+                size = other_size;
+            }
+        }
+        
+        return size;
     }
 };
 
@@ -152,15 +167,48 @@ fn solve1(input: []const u8) !u32 {
 }
 
 fn solve2(input: []const u8) !u32 {
-    var total_score: u32 = 0;
-    
     var tokens = std.mem.tokenize(u8, input, " \n\r");
     
-    while (tokens.next()) |line| {
-        std.debug.print("{s}\n", .{ line });
+    var tree = try Tree.init(allocator);
+    defer tree.deinit();
+    
+    while (tokens.next()) |token| {
+        if (std.mem.eql(u8, token, "$")) {
+            const command = tokens.next().?;
+            
+            if (std.mem.eql(u8, command, "ls")) {
+                while (!std.mem.eql(u8, tokens.peek() orelse break, "$")) {
+                    var type_string = tokens.next() orelse break;
+                    var name = tokens.next() orelse break;
+                    var size: u32 = 0;
+                    
+                    if (std.mem.eql(u8, type_string, "dir")) {
+                        try tree.mkdir(name);
+                    } else {
+                        size = try std.fmt.parseInt(u32, type_string, 10);
+                        try tree.touch(name, size);
+                    }
+                }
+            }
+            else if (std.mem.eql(u8, command, "cd")) {
+                var dir = tokens.next() orelse break;
+                
+                if (std.mem.eql(u8, dir, "..")) {
+                    tree.back();
+                } else {
+                    tree.move(dir);
+                }
+            }
+        }
     }
     
-    return total_score;
+    _ = tree.root.calculate();
+    
+    const used_space = tree.root.size;
+    const free_space = 70000000 - used_space;
+    const needed_space = 30000000 - free_space;
+    
+    return tree.root.find_dir_to_delete(needed_space);
 }
 
 fn bench(comptime solve: fn ([] const u8) anyerror!u32) !void {
@@ -182,12 +230,12 @@ fn bench(comptime solve: fn ([] const u8) anyerror!u32) !void {
 
 pub fn main() !void {
     try bench(solve1);
-    // try bench(solve2);
+    try bench(solve2);
     _ = gpa.deinit();
 }
 
 test {
     try bench(solve1);
-    // try bench(solve2);
+    try bench(solve2);
     _ = gpa.deinit();
 }
