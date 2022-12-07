@@ -40,16 +40,6 @@ const Item = struct {
         self.children.deinit();
     }
     
-    fn print(self: *const Item) void {
-        std.debug.print("{s} ({}): Size: {d}\n", .{self.name, self.item_type, self.size});
-        
-        var it = self.children.valueIterator();
-        
-        while (it.next()) |item| {
-            item.print();
-        }
-    }
-    
     fn calculate(self: *Item) u32 {
         if (self.item_type == .file) return self.size;
         
@@ -119,14 +109,6 @@ const Tree = struct {
     fn back(self: *Tree) void {
         self.current = self.current.parent;
     }
-    
-    fn print(self: *const Tree) void {
-        self.root.print();
-    }
-    
-    fn calculate(self: *const Tree) u32 {
-        return self.root.calculate();
-    }
 };
 
 fn solve1(input: []const u8) !u32 {
@@ -165,8 +147,7 @@ fn solve1(input: []const u8) !u32 {
         }
     }
     
-    _ = tree.calculate();
-    // tree.print();
+    _ = tree.root.calculate();
     return tree.root.total_size(100000);
 }
 
