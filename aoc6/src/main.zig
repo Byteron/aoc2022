@@ -4,7 +4,7 @@ const Timer = std.time.Timer;
 pub fn solve(input: []const u8, count: u8) !u32 {
     var lines = std.mem.tokenize(u8, input, "\n\r");
     var line = lines.next().?;
-    
+
     var bits: u64 = 0;
     var bit_count: u32 = 0;
     var prev_count: u32 = 0;
@@ -18,8 +18,7 @@ pub fn solve(input: []const u8, count: u8) !u32 {
             index -= prev_count;
             bits = 0;
             prev_count = 0;
-        }
-        else {
+        } else {
             prev_count = bit_count;
         }
         index += 1;
@@ -28,13 +27,13 @@ pub fn solve(input: []const u8, count: u8) !u32 {
     return index;
 }
 
-pub fn bench(comptime solvefn: fn ([] const u8, count: u8) anyerror!u32, count: u8) !void {
+pub fn bench(comptime solvefn: fn ([]const u8, count: u8) anyerror!u32, count: u8) !void {
     const input = @embedFile("input.txt");
     var counter: u32 = 1000;
     var timer = try Timer.start();
     var time: u64 = 0;
     var score: u32 = 0;
-    
+
     while (counter > 0) {
         score = try solvefn(input, count);
         time += timer.lap();
