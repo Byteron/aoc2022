@@ -3,9 +3,6 @@ const Timer = std.time.Timer;
 const Allocator = std.mem.Allocator;
 const HashMap = std.StringHashMap;
 
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-const allocator = gpa.allocator();
-
 const test_count: u32 = 1000;
 
 const ItemType = enum {
@@ -21,7 +18,7 @@ const Item = struct {
     children: HashMap(Item),
 
     fn init(alloc: Allocator, parent: *Item, item_type: ItemType, name: []const u8, size: u32) Item {
-        return Item {
+        return Item{
             .item_type = item_type,
             .name = name,
             .size = size,
@@ -32,17 +29,17 @@ const Item = struct {
 
     fn deinit(self: *Item, alloc: Allocator) void {
         var it = self.children.valueIterator();
-        
+
         while (it.next()) |item| {
             item.deinit(alloc);
         }
 
         self.children.deinit();
     }
-    
+
     fn calculate(self: *Item) u32 {
         if (self.item_type == .file) return self.size;
-        
+
         self.size = 0;
         var it = self.children.valueIterator();
         while (it.next()) |item| {
@@ -50,23 +47,23 @@ const Item = struct {
         }
         return self.size;
     }
-    
+
     fn total_size(self: *const Item, limit: u32) u32 {
         var sum: u32 = 0;
         if (self.size <= limit and self.item_type == .directory) sum += self.size;
-        
+
         var it = self.children.valueIterator();
         while (it.next()) |item| {
             sum += item.total_size(limit);
         }
-        
+
         return sum;
     }
-    
+
     fn find_dir_to_delete(self: *const Item, needed_space: u32) u32 {
         var size: u32 = 0;
         if (self.size >= needed_space and self.item_type == .directory) size = self.size;
-        
+
         var it = self.children.valueIterator();
         while (it.next()) |item| {
             var other_size = item.find_dir_to_delete(needed_space);
@@ -74,7 +71,7 @@ const Item = struct {
                 size = other_size;
             }
         }
-        
+
         return size;
     }
 };
@@ -89,13 +86,13 @@ const Tree = struct {
         var root = try alloc.create(Item);
         root.* = Item.init(alloc, undefined, .directory, "/", 0);
 
-        return Tree {
+        return Tree{
             .alloc = alloc,
             .root = root,
             .current = root,
         };
     }
-    
+
     fn deinit(self: *Tree) void {
         self.root.deinit(self.alloc);
         self.alloc.destroy(self.root);
@@ -126,22 +123,19 @@ const Tree = struct {
     }
 };
 
-fn solve1(input: []const u8) !u32 {
+fn parse(tree: *Tree, input: []const u8) !void {
     var tokens = std.mem.tokenize(u8, input, " \n\r");
-    
-    var tree = try Tree.init(allocator);
-    defer tree.deinit();
-    
+
     while (tokens.next()) |token| {
         if (std.mem.eql(u8, token, "$")) {
             const command = tokens.next().?;
-            
+
             if (std.mem.eql(u8, command, "ls")) {
                 while (!std.mem.eql(u8, tokens.peek() orelse break, "$")) {
                     var type_string = tokens.next() orelse break;
                     var name = tokens.next() orelse break;
                     var size: u32 = 0;
-                    
+
                     if (std.mem.eql(u8, type_string, "dir")) {
                         try tree.mkdir(name);
                     } else {
@@ -149,10 +143,9 @@ fn solve1(input: []const u8) !u32 {
                         try tree.touch(name, size);
                     }
                 }
-            }
-            else if (std.mem.eql(u8, command, "cd")) {
+            } else if (std.mem.eql(u8, command, "cd")) {
                 var dir = tokens.next() orelse break;
-                
+
                 if (std.mem.eql(u8, dir, "..")) {
                     tree.back();
                 } else {
@@ -161,65 +154,30 @@ fn solve1(input: []const u8) !u32 {
             }
         }
     }
-    
+
     _ = tree.root.calculate();
+}
+
+fn solve1(tree: *Tree) !u32 {
     return tree.root.total_size(100000);
 }
 
-fn solve2(input: []const u8) !u32 {
-    var tokens = std.mem.tokenize(u8, input, " \n\r");
-    
-    var tree = try Tree.init(allocator);
-    defer tree.deinit();
-    
-    while (tokens.next()) |token| {
-        if (std.mem.eql(u8, token, "$")) {
-            const command = tokens.next().?;
-            
-            if (std.mem.eql(u8, command, "ls")) {
-                while (!std.mem.eql(u8, tokens.peek() orelse break, "$")) {
-                    var type_string = tokens.next() orelse break;
-                    var name = tokens.next() orelse break;
-                    var size: u32 = 0;
-                    
-                    if (std.mem.eql(u8, type_string, "dir")) {
-                        try tree.mkdir(name);
-                    } else {
-                        size = try std.fmt.parseInt(u32, type_string, 10);
-                        try tree.touch(name, size);
-                    }
-                }
-            }
-            else if (std.mem.eql(u8, command, "cd")) {
-                var dir = tokens.next() orelse break;
-                
-                if (std.mem.eql(u8, dir, "..")) {
-                    tree.back();
-                } else {
-                    tree.move(dir);
-                }
-            }
-        }
-    }
-    
-    _ = tree.root.calculate();
-    
+fn solve2(tree: *Tree) !u32 {
     const used_space = tree.root.size;
     const free_space = 70000000 - used_space;
     const needed_space = 30000000 - free_space;
-    
+
     return tree.root.find_dir_to_delete(needed_space);
 }
 
-fn bench(comptime solve: fn ([] const u8) anyerror!u32) !void {
-    const input = @embedFile("input.txt");
+fn bench(comptime solve: fn (*Tree) anyerror!u32, tree: *Tree) !void {
     var counter: u32 = test_count;
     var timer = try Timer.start();
     var time: u64 = 0;
     var score: u32 = 0;
-    
+
     while (counter > 0) {
-        score = try solve(input);
+        score = try solve(tree);
         time += timer.lap();
         counter -= 1;
     }
@@ -229,13 +187,38 @@ fn bench(comptime solve: fn ([] const u8) anyerror!u32) !void {
 }
 
 pub fn main() !void {
-    try bench(solve1);
-    try bench(solve2);
-    _ = gpa.deinit();
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer _ = gpa.deinit();
+
+    // const allocator = gpa.allocator();
+
+    var buffer: [1000000]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&buffer);
+
+    const allocator = fba.allocator();
+
+    const input = @embedFile("input.txt");
+
+    var tree = try Tree.init(allocator);
+    defer tree.deinit();
+
+    try parse(&tree, input);
+
+    try bench(solve1, &tree);
+    try bench(solve2, &tree);
 }
 
 test {
-    try bench(solve1);
-    try bench(solve2);
-    _ = gpa.deinit();
+    const input = @embedFile("input.txt");
+
+    var tree = try Tree.init(std.testing.allocator);
+    defer tree.deinit();
+
+    try parse(&tree, input);
+
+    var score1 = try solve1(&tree);
+    var score2 = try solve2(&tree);
+
+    std.debug.print("Score: {d}\n", .{score1});
+    std.debug.print("Score: {d}\n", .{score2});
 }

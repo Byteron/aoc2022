@@ -68,13 +68,10 @@ pub fn solve1(input: []const u8) !void {
     while (commands.next()) |command| {
         if (std.mem.eql(u8, command, "")) break;
         
-        var split = std.mem.split(u8, command, " ");
+        var split = std.mem.tokenize(u8, command, "move from to");
         
-        _ = split.next();
         const count = try std.fmt.parseInt(u8, split.next().?, 10);
-        _ = split.next();
         const from = try std.fmt.parseInt(u8, split.next().?, 10);
-        _ = split.next();
         const to = try std.fmt.parseInt(u8, split.next().?, 10);
         
         var index : u8 = 0;
@@ -123,20 +120,16 @@ pub fn solve2(input: []const u8) !void {
     while (commands.next()) |command| {
         if (std.mem.eql(u8, command, "")) break;
         
-        var split = std.mem.split(u8, command, " ");
+        var split = std.mem.tokenize(u8, command, "move from to");
         
-        _ = split.next();
         const count = try std.fmt.parseInt(u8, split.next().?, 10);
-        _ = split.next();
         const from = try std.fmt.parseInt(u8, split.next().?, 10);
-        _ = split.next();
         const to = try std.fmt.parseInt(u8, split.next().?, 10);
         
         
         var temp_stack = Stack{};
         var index : u8 = 0;
-        while (index < count)
-        {
+        while (index < count) {
             const value = stacks[from - 1].pop();
             temp_stack.push(value);
             index += 1;
